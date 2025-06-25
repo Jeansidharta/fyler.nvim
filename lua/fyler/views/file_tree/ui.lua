@@ -9,14 +9,22 @@ local M = {}
 ---@param type string
 ---@param name string
 function M.get_icon(type, name)
-  local has_icons, minicons = pcall(require, "mini.icons")
+  local has_icons, nvim_web_devicons = pcall(require, "nvim-web-devicons")
   if not has_icons then
     return "", ""
   end
 
-  local status, icon, hl = pcall(minicons.get, type, name)
+  local status, icon, hl = pcall(nvim_web_devicons.get_icon, name, name:match("[.]([^.]+)$"))
   if not status then
     return "", ""
+  end
+
+  if not icon then
+    if type == "directory" then
+      return "󰉋", ""
+    else
+      return "󰈔", ""
+    end
   end
 
   return icon, hl
@@ -52,15 +60,13 @@ local function TREE_STRUCTURE(tbl, depth)
     local icon, hl
 
     if item.type == "directory" then
-      icon = M.get_icon(item.type, item.name)
-      hl = "FylerBlue"
+      icon, hl = M.get_icon(item.type, item.name)
     elseif item.type == "link" and item.links_to.type == nil then
       -- This is a broken link
       icon = BrokenLinkIcon
       hl = "FylerRed"
     elseif item.type == "link" then
-      icon = M.get_icon(item.links_to.type, item.name)
-      hl = "FylerGreen"
+      icon, hl = M.get_icon(item.links_to.type, item.name)
     else
       icon, hl = M.get_icon(item.type, item.name)
     end
@@ -70,8 +76,11 @@ local function TREE_STRUCTURE(tbl, depth)
       Line {
         words = {
           Word(string.rep(" ", depth * 2)),
-          Word(icon, item.type == "directory" and "FylerBlue" or hl),
-          Word(string.format(" %s", item.name), item.type == "directory" and "FylerBlue" or ""),
+          Word(icon, hl),
+          Word(
+            string.format(" %s", item.name) .. (item.type == "directory" and "/" or ""),
+            item.type == "directory" and "FylerBlue" or ""
+          ),
           Word(string.format(" /%d", item.key)),
         },
         marks = item.type == "link" and {
